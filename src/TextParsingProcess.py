@@ -1,8 +1,9 @@
 import ginza
 import spacy
-
 from pprint import pprint
 from typing import List
+
+import DatetimeUtility
 
 
 # テキストから情報の抽出を行う
@@ -10,6 +11,7 @@ class TextParsingProcess():
     def __init__(self) -> None:
         self._nlp = spacy.load('ja_ginza')
         ginza.set_split_mode(self._nlp, "A")
+
 
     # 入力文章から情報の抽出を行い抽出情報を表示（テスト）
     def MakeTask(self, message: str) -> None:
@@ -53,10 +55,12 @@ class TextParsingProcess():
                     if periodTimeTokens is not None:
                         print("時間")
                         pprint(periodTimeTokens)
+                        DatetimeUtility.PeriodTimeExpressionNormalization(periodTimeTokens)
                     timeTokens = self.GetTimeTokens(token)
                     if timeTokens is not None:
                         print("時刻")
                         pprint(timeTokens)
+                        DatetimeUtility.TimeExpressionNormalization(timeTokens)
             dispTimeTokens(periodTime, "Period_Time")
             dispTimeTokens(time, "Time")
 
