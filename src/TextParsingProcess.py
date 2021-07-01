@@ -4,6 +4,7 @@ from pprint import pprint
 from typing import List
 
 import DatetimeUtility
+import Notify
 
 
 # テキストから情報の抽出を行う
@@ -13,14 +14,16 @@ class TextParsingProcess():
         ginza.set_split_mode(self._nlp, "A")
 
 
-    # 入力文章から情報の抽出を行い抽出情報を表示（テスト）
-    def MakeTask(self, message: str) -> None:
+    # 入力文章から情報の抽出を行い抽出情報を表示
+    def MakeTask(self, message: str) -> Notify.NotifyTask:
         doc = self._nlp(message)
+        param = Notify.NotifyParam()
 
         commands = self._nlp("教える")  # コマンド（仮）の定義
-        sentCount = 0
+        commandSentenceIndex = 0
+        rootTokens = []
         print("----")
-        for sent in doc.sents:
+        for sentIndex, sent in enumerate(doc.sents):
             # 一文ごとの意味情報を抽出
             root = None         # ROOT（文章の趣旨，係り起点）
             verb = None         # VERB（ROOTの係り受け動詞候補）
@@ -29,14 +32,34 @@ class TextParsingProcess():
             for token in sent:
                 if self.IsRootToken(token):
                     root = token
+                    rootTokens.append(root)
                     verb = self.GetSyntacticDependencyTokenFromTag(token, "動詞-一般")
                     periodTime = self.GetSyntacticDependencyTokenFromEntType(token, "Period_Time")
                     time = self.GetSyntacticDependencyTokenFromEntType(token, "Time")
                 self.DispTokenAttrs(token)
 
+            # NotifyTask用のパラメータがあれば格納
+            lemmaToken = self._nlp(root.lemma_)
+            isCommandSentence = False
+            if commands[0].lemma == lemmaToken[0].lemma:
+                isCommandSentence = True
+            # コマンド（仮）に似た単語ならコマンド実行用文章と判断
+            elif commands[0].has_vector and lemmaToken[0].has_vector:
+                if 0.5 <= commands[0].similarity(lemmaToken[0]):
+                    isCommandSentence = True
+
+            if isCommandSentence:
+                param._root = root
+                commandSentenceIndex = sentIndex
+            
+            if periodTime is not None:
+                param._time = DatetimeUtility.PeriodTimeExpressionNormalization(self.GetPeriodTimeTokens(periodTime))
+            if time is not None:
+                param._time = DatetimeUtility.TimeExpressionNormalization(self.GetTimeTokens(time))
+
+            # 以下，デバッグ表示処理
             # 入力文表示
-            print(f"入力{sentCount} => {sent.text}")
-            sentCount += 1
+            print(f"入力{sentIndex} => {sent.text}")
 
             # 単語とコマンド（仮）の類似度表示
             def dispToken(token, dispLabel) -> None:
@@ -67,6 +90,23 @@ class TextParsingProcess():
             print()
         print("----")
 
+        # コマンド（仮）にかかっている VERB をコマンド（仮）がある文からさかのぼって調べる
+        # コマンド（仮）の文の後にかかる VERB が存在するケースは考慮していない
+        verb = self.GetSyntacticDependencyTokenFromTag(rootTokens[commandSentenceIndex], "動詞-一般")
+        if verb is not None:
+            param._verb = verb
+        else:
+            for i in range(1, commandSentenceIndex+1):
+                verb = self.GetSyntacticDependencyTokenFromTag(rootTokens[commandSentenceIndex-i], "動詞-一般")
+                if verb is not None:
+                    param._verb = verb
+                    break
+                verb = self.GetSyntacticDependencyTokenFromTag(rootTokens[commandSentenceIndex-i], "動詞-一般", True)
+                if verb is not None:
+                    param._verb = verb
+                    break
+        return Notify.NotifyTask(param)
+        
 
     # TokenのROOT判定
     def IsRootToken(self, token: spacy.tokens.token.Token) -> bool:
@@ -103,20 +143,21 @@ class TextParsingProcess():
 
 
     # 条件を満たす係り受けトークンを取得（条件：品詞詳細）
-    def GetSyntacticDependencyTokenFromTag(self, rootToken: spacy.tokens.token.Token, target: str) -> spacy.tokens.token.Token:
-        return self.GetSyntacticDependencyToken(rootToken, lambda token, target: token.tag_ == target, target)
+    def GetSyntacticDependencyTokenFromTag(self, rootToken: spacy.tokens.token.Token, target: str, isCheckSelf: bool=False) -> spacy.tokens.token.Token:
+        return self.GetSyntacticDependencyToken(rootToken, lambda token, target: token.tag_ == target, target, isCheckSelf)
 
 
     # 条件を満たす係り受けトークンを取得（条件：固有表現）
-    def GetSyntacticDependencyTokenFromEntType(self, rootToken: spacy.tokens.token.Token, target: str) -> spacy.tokens.token.Token:
-        return self.GetSyntacticDependencyToken(rootToken, lambda token, target: token.ent_type_ == target, target)
+    def GetSyntacticDependencyTokenFromEntType(self, rootToken: spacy.tokens.token.Token, target: str, isCheckSelf: bool=False) -> spacy.tokens.token.Token:
+        return self.GetSyntacticDependencyToken(rootToken, lambda token, target: token.ent_type_ == target, target, isCheckSelf)
 
 
     # 条件を満たす係り受けトークンを取得
     # @param rootToken: 取得元トークン
     # @param checkLambda: トークンのチェック条件
     # @param target: 対象の要素
-    def GetSyntacticDependencyToken(self, rootToken: spacy.tokens.token.Token, checkLambda, target: str) -> spacy.tokens.token.Token:
+    # @param isCheckSelf: rootTokenを取得対象とするか
+    def GetSyntacticDependencyToken(self, rootToken: spacy.tokens.token.Token, checkLambda, target: str, isCheckSelf: bool=False) -> spacy.tokens.token.Token:
         for token in rootToken.lefts:
             if checkLambda(token, target):
                 return token
@@ -127,9 +168,9 @@ class TextParsingProcess():
             if ret is not None:
                 return ret
 
-        # # 見つからなかった場合、自身をチェック
-        # if checkLambda(rootToken, target):
-        #     return rootToken
+        # 見つからなかった場合、自身をチェック
+        if isCheckSelf and checkLambda(rootToken, target):
+            return rootToken
         return None
 
 
@@ -151,9 +192,10 @@ class TextParsingProcess():
         tokenList = [str(a) for a in token_attrs]
         print(tokenList)
 
-
-tpp = TextParsingProcess()
-while True:
-    print("input>")
-    input_line = input()
-    tpp.MakeTask(input_line)
+if __name__ == "__main__":
+    tpp = TextParsingProcess()
+    while True:
+        print("input>")
+        input_line = input()
+        task = tpp.MakeTask(input_line)
+        print(task._param.MakeRegistrationCompleteMessage())
