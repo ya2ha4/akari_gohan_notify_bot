@@ -5,32 +5,32 @@ import json
 import discord
 from discord.ext import commands
 
-import TextParsingProcess
+import text_parsing_process
 
 
 class MessageListenerCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self._bot: commands.Bot = bot
-        self._tpp: TextParsingProcess.TextParsingProcess = TextParsingProcess.TextParsingProcess()
+        self._tpp: text_parsing_process.TextParsingProcess = text_parsing_process.TextParsingProcess()
 
 
     @commands.Cog.listener(name="on_message")
-    async def ResponseMessage(self, message: discord.Message) -> None:
+    async def response_message(self, message: discord.Message) -> None:
         if message.author == self._bot.user:
             return
 
-        task = self._tpp.MakeTask(message.content)
-        if task.IsRegistrable():
+        task = self._tpp.make_task(message.content)
+        if task.is_registrable():
             # お知らせ用パラメータ設定
-            task.SetNotifyMember(message.author)
-            task.SetNotifyTextChannel(message.channel)
+            task.set_notify_member(message.author)
+            task.set_notify_text_channel(message.channel)
 
             # お知らせ実行処理の登録
             loop = asyncio.get_event_loop()
-            loop.call_later((task._param._time - datetime.datetime.now()).total_seconds(), task.Notify)
+            loop.call_later((task._param._time - datetime.datetime.now()).total_seconds(), task.notify)
 
             # お知らせ登録完了メッセージの送信
-            await message.channel.send(content=task._param.MakeRegistrationCompleteMessage())
+            await message.channel.send(content=task._param.make_registration_complete_message())
 
 
 if __name__ == "__main__":
