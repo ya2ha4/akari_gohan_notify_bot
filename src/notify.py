@@ -35,6 +35,8 @@ class NotifyParam():
 
 
 class NotifyTask():
+    _play_voice_lock: asyncio.Lock = asyncio.Lock()
+
     def __init__(self) -> None:
         self._param: NotifyParam = NotifyParam()
         self._notify_member: discord.Member = None
@@ -62,15 +64,16 @@ class NotifyTask():
         # テキストチャンネルにお知らせメッセージを送信
         await self._notify_text_channel.send(f"{self._notify_member.mention} "+self._param.make_notify_message())
 
-        # ユーザがボイスチャンネルに接続中の場合，音声でのお知らせを実行
-        if self._notify_member.voice:
-            voice_client = await self._notify_member.voice.channel.connect()
-            voice_client.play(discord.FFmpegPCMAudio("voice/test.wav"))
-            wav_play_time = 0.0
-            with wave.open("voice/test.wav", "rb") as wav_file:
-                wav_play_time = float(wav_file.getnframes()) / float(wav_file.getframerate())
-            await asyncio.sleep(wav_play_time)
-            await voice_client.disconnect()
+        async with NotifyTask._play_voice_lock:
+            # ユーザがボイスチャンネルに接続中の場合，音声でのお知らせを実行
+            if self._notify_member.voice:
+                voice_client = await self._notify_member.voice.channel.connect()
+                voice_client.play(discord.FFmpegPCMAudio("voice/test.wav"))
+                wav_play_time = 0.0
+                with wave.open("voice/test.wav", "rb") as wav_file:
+                    wav_play_time = float(wav_file.getnframes()) / float(wav_file.getframerate())
+                await asyncio.sleep(wav_play_time)
+                await voice_client.disconnect()
 
 
     def set_notify_member(self, member: discord.Member) -> None:
