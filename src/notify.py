@@ -1,10 +1,14 @@
 import asyncio
 import datetime
 import wave
+from logging import getLogger
 
 import discord
 import ginza
 import spacy
+
+
+logger = getLogger(__name__)
 
 
 class NotifyParam():
@@ -61,6 +65,7 @@ class NotifyTask():
 
 
     async def _notify_process(self) -> None:
+        logger.debug(f"start _notify_process")
         # テキストチャンネルにお知らせメッセージを送信
         await self._notify_text_channel.send(f"{self._notify_member.mention} "+self._param.make_notify_message())
 
@@ -68,12 +73,15 @@ class NotifyTask():
             # ユーザがボイスチャンネルに接続中の場合，音声でのお知らせを実行
             if self._notify_member.voice:
                 voice_client = await self._notify_member.voice.channel.connect()
-                voice_client.play(discord.FFmpegPCMAudio("voice/test.wav"))
+                file_name = "voice/test.wav"
+                voice_client.play(discord.FFmpegPCMAudio(file_name))
+                logger.debug(f"play: {file_name}")
                 wav_play_time = 0.0
-                with wave.open("voice/test.wav", "rb") as wav_file:
+                with wave.open(file_name, "rb") as wav_file:
                     wav_play_time = float(wav_file.getnframes()) / float(wav_file.getframerate())
                 await asyncio.sleep(wav_play_time)
                 await voice_client.disconnect()
+        logger.info(f"finish _notify_process")
 
 
     def set_notify_member(self, member: discord.Member) -> None:

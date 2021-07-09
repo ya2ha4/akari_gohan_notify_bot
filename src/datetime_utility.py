@@ -1,7 +1,11 @@
 import datetime
 import spacy
 from enum import Enum
+from logging import getLogger
 from typing import List
+
+
+logger = getLogger(__name__)
 
 
 class Meridiem(Enum):
@@ -63,11 +67,11 @@ def time_expression_normalization(root_token: List[spacy.tokens.token.Token]) ->
             hour += 24
         target_time = datetime.timedelta(hours=hour, minutes=minute)
     
-    # print(f"{meridiem_type=},{hour=},{minute=}")
+    logger.debug(f"{meridiem_type=},{hour=},{minute=}")
     delta = datetime.timedelta(hours=hour, minutes=minute)
     time = datetime.datetime(now.year, now.month, now.day) + delta
-    print(f"現在時刻:{now}")
-    print(f"目標時刻:{time}")
+    logger.debug(f"現在時刻:{now}")
+    logger.info(f"目標時刻:{time}")
     return time
 
 
@@ -118,8 +122,8 @@ def period_time_expression_normalization(root_token: spacy.tokens.token.Token) -
     now = datetime.datetime.now()
     delta = datetime.timedelta(hours=hour, minutes=minute)
     time = now + delta
-    print(f"現在時刻:{now}")
-    print(f"目標時刻:{time}")
+    logger.debug(f"現在時刻:{now}")
+    logger.info(f"目標時刻:{time}")
     return time
 
 

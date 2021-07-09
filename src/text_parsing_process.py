@@ -1,11 +1,15 @@
 import discord
 import ginza
+import logging
 import spacy
-from pprint import pprint
+from logging import getLogger
 from typing import List
 
 import datetime_utility
 import notify
+
+
+logger = getLogger(__name__)
 
 
 # テキストから情報の抽出を行う
@@ -23,7 +27,7 @@ class TextParsingProcess():
         commands = self._nlp("教える")  # コマンド（仮）の定義
         command_sentence_index = 0
         root_tokens = []
-        print("----")
+        logger.debug("----")
         for sent_index, sent in enumerate(doc.sents):
             # 一文ごとの意味情報を抽出
             root = None         # ROOT（文章の趣旨，係り起点）
@@ -60,15 +64,15 @@ class TextParsingProcess():
 
             # 以下，デバッグ表示処理
             # 入力文表示
-            print(f"入力{sent_index} => {sent.text}")
+            logger.debug(f"入力{sent_index} => {sent.text}")
 
             # 単語とコマンド（仮）の類似度表示
             def disp_token(token, disp_label) -> None:
                 if token is not None:
-                    print(f"{disp_label}:{token.lemma_}")
+                    logger.debug(f"{disp_label}:{token.lemma_}")
                     lemma_token = self._nlp(token.lemma_)
                     if commands[0].has_vector and lemma_token[0].has_vector:
-                        print(f"「{commands[0].text}」との類似度：{commands[0].similarity(lemma_token[0])}")
+                        logger.debug(f"「{commands[0].text}」との類似度：{commands[0].similarity(lemma_token[0])}")
             disp_token(root, "ROOT")
             disp_token(verb, "VERB")
 
@@ -77,19 +81,17 @@ class TextParsingProcess():
                 if token is not None:
                     period_time_tokens = self.get_period_time_tokens(token)
                     if period_time_tokens is not None:
-                        print("時間")
-                        pprint(period_time_tokens)
+                        logger.debug(f"時間:{[token.text for token in period_time_tokens]}")
                         datetime_utility.period_time_expression_normalization(period_time_tokens)
                     time_tokens = self.get_time_tokens(token)
                     if time_tokens is not None:
-                        print("時刻")
-                        pprint(time_tokens)
+                        logger.debug(f"時刻:{[token.text for token in time_tokens]}")
                         datetime_utility.time_expression_normalization(time_tokens)
             disp_time_tokens(period_time, "Period_Time")
             disp_time_tokens(time, "Time")
 
-            print()
-        print("----")
+            logger.debug("")
+        logger.debug("----")
 
         # コマンド（仮）にかかっている VERB をコマンド（仮）がある文からさかのぼって調べる
         # コマンド（仮）の文の後にかかる VERB が存在するケースは考慮していない
@@ -191,9 +193,13 @@ class TextParsingProcess():
             list(token.rights)  # 係り受け：右
         ]
         tokenList = [str(a) for a in token_attrs]
-        print(tokenList)
+        logger.info(tokenList)
 
 if __name__ == "__main__":
+    log_format = "[%(asctime)s %(levelname)s %(name)s][%(funcName)s] %(message)s"
+    logging.basicConfig(filename=f"logfile.txt", format=log_format)
+    logging.getLogger().setLevel(level=logging.DEBUG)
+
     tpp = TextParsingProcess()
     while True:
         print("input>")

@@ -127,3 +127,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# akari_gohan_notify_bot output
+logfile.txt

@@ -1,12 +1,17 @@
 import asyncio
 import datetime
 import json
+import logging
 import typing
+from logging import getLogger
 
 import discord
 from discord.ext import commands
 
 import text_parsing_process
+
+
+logger = getLogger(__name__)
 
 
 class MessageListenerCog(commands.Cog):
@@ -29,6 +34,7 @@ class MessageListenerCog(commands.Cog):
             if not needs_response:
                 return
 
+        logger.debug(f"on_message:{message.content=}")
         task = self._tpp.make_task(message.content)
         if task.is_registrable():
             # お知らせ用パラメータ設定
@@ -38,6 +44,7 @@ class MessageListenerCog(commands.Cog):
             # お知らせ実行処理の登録
             loop = asyncio.get_event_loop()
             loop.call_later((task._param._time - datetime.datetime.now()).total_seconds(), task.notify)
+            logger.info(f"registered:{task._param._verb=}, {task._param._time=}")
 
             # お知らせ登録完了メッセージの送信
             await message.channel.send(content=task._param.make_registration_complete_message())
@@ -47,6 +54,10 @@ class MessageListenerCog(commands.Cog):
 
 
 if __name__ == "__main__":
+    log_format = "[%(asctime)s %(levelname)s %(name)s][%(funcName)s] %(message)s"
+    logging.basicConfig(filename=f"logfile.txt", format=log_format)
+    logging.getLogger().setLevel(level=logging.DEBUG)
+
     intents = discord.Intents.default()
     intents.members = True
     bot = commands.Bot(command_prefix=".", intents=intents)
