@@ -7,6 +7,7 @@ import discord
 import ginza
 import spacy
 
+import notify_task_list
 
 logger = getLogger(__name__)
 
@@ -45,18 +46,48 @@ class NotifyTask():
         self._param: NotifyParam = NotifyParam()
         self._notify_member: discord.Member = None
         self._notify_text_channel: discord.TextChannel = None
+        self._notify_time_handler: asyncio.TimerHandle = None
+        self._register_send_message: discord.Message = None
 
 
     def __init__(self, param: NotifyParam) -> None:
         self._param: NotifyParam = param
         self._notify_member: discord.Member = None
         self._notify_text_channel: discord.TextChannel = None
+        self._notify_time_handler: asyncio.TimerHandle = None
+        self._register_send_message: discord.Message = None
 
 
     def is_registrable(self) -> bool:
         if self._param is None:
             return False
         return self._param._root is not None and self._param._time is not None
+
+
+    def register_task(self, message: discord.Message) -> None:
+        loop = asyncio.get_event_loop()
+        loop.create_task(self._register_task_process(message))
+
+
+    async def _register_task_process(self, message: discord.Message) -> None:
+        # お知らせ用パラメータ設定
+        self.set_notify_member(message.author)
+        self.set_notify_text_channel(message.channel)
+
+        # お知らせ実行処理の登録
+        loop = asyncio.get_event_loop()
+        self._notify_time_handler = loop.call_later((self._param._time - datetime.datetime.now()).total_seconds(), self.notify)
+
+        # お知らせ登録完了メッセージの送信
+        embed_text =  f":negative_squared_cross_mark: お知らせのキャンセル\n"
+        embed = discord.Embed()
+        embed.add_field(name="リアクションで操作が出来ます", value=embed_text, inline=False)
+        send_message = await message.channel.send(content=self._param.make_registration_complete_message(), embed=embed)
+        await send_message.add_reaction("❎")
+        logger.info(f"registered:{self._param._verb=}, {self._param._time=}")
+
+        self._register_send_message = send_message
+        notify_task_list.registered_notify_task_list.append_task(self)
 
 
     def notify(self) -> None:
@@ -81,7 +112,13 @@ class NotifyTask():
                     wav_play_time = float(wav_file.getnframes()) / float(wav_file.getframerate())
                 await asyncio.sleep(wav_play_time)
                 await voice_client.disconnect()
+
+        notify_task_list.registered_notify_task_list.remove_task(self)
         logger.info(f"finish _notify_process")
+
+
+    def cancel(self) -> None:
+        self._notify_time_handler.cancel()
 
 
     def set_notify_member(self, member: discord.Member) -> None:

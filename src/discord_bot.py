@@ -8,6 +8,7 @@ from logging import getLogger
 import discord
 from discord.ext import commands
 
+import notify_task_list
 import text_parsing_process
 
 
@@ -37,18 +38,29 @@ class MessageListenerCog(commands.Cog):
         logger.debug(f"on_message:{message.content=}")
         task = self._tpp.make_task(message.content)
         if task.is_registrable():
-            # お知らせ用パラメータ設定
-            task.set_notify_member(message.author)
-            task.set_notify_text_channel(message.channel)
+            task.register_task(message)
 
-            # お知らせ実行処理の登録
-            loop = asyncio.get_event_loop()
-            loop.call_later((task._param._time - datetime.datetime.now()).total_seconds(), task.notify)
-            logger.info(f"registered:{task._param._verb=}, {task._param._time=}")
 
-            # お知らせ登録完了メッセージの送信
-            await message.channel.send(content=task._param.make_registration_complete_message())
-    
+    @commands.Cog.listener(name="on_reaction_add")
+    async def response_reaction(self, reaction: discord.Reaction, user: typing.Union[discord.Member, discord.User]) -> None:
+        if user == self._bot.user:
+            return
+
+        logger.info(f"on_reaction_add:{reaction.emoji=}")
+        if reaction.emoji == "❎":
+
+            # cancel(self, reaction, user)
+            task = notify_task_list.registered_notify_task_list.find_task(reaction.message.id)
+            if task is not None:
+                if task._notify_member.id == user.id:
+                    logger.info(f"cancel_task")
+                    task.cancel()
+                    await reaction.message.delete()
+                else:
+                    logger.info(f"別ユーザのメッセージの為，キャンセルせず")
+                    await reaction.remove(user)
+
+
     def set_response_text_channel_id_list(self, channel_list: typing.List[int]) -> None:
         self._response_text_channel_id_list = channel_list
 
