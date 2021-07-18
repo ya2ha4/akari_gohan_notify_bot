@@ -70,7 +70,7 @@ def period_time_expression_normalization(root_token: spacy.tokens.token.Token) -
     return time
 
 
-# 時刻表現をdatetimeへ変換
+# 数値の文字列をintへ変換
 def time_expression_to_nummeric(in_text: str) -> int:
     # 半を30に変換
     if in_text == "半":
