@@ -1,6 +1,6 @@
 import datetime
 import spacy
-from enum import Enum
+from enum import IntEnum
 from logging import getLogger
 from typing import List
 
@@ -8,68 +8,41 @@ from typing import List
 logger = getLogger(__name__)
 
 
-class Meridiem(Enum):
+class Meridiem(IntEnum):
     AM = 0
     PM = 1
     NOT_MERIDIEM = -1
 
 
+class TimeUnit(IntEnum):
+    HOUR = 0
+    MINUTES = 1
+    SECONDS = 2
+ 
+
 # 時刻表現をdatetimeへ変換
 def time_expression_normalization(root_token: List[spacy.tokens.token.Token]) -> datetime.datetime:
-    # 対応文字列
-    # (午前午後)?(時)?(分)?(程度)?
-    # 午前午後： [午前|午後|AM|PM|A.M.|am|...]
-    # 時　　　： [0-24][:：時]
-    # 分　　　：([0-59][分]?)|[半]
-    num_temp = -1
-
-    # 判別できた時刻表現の保持用
     meridiem_type = Meridiem.NOT_MERIDIEM
-    hour = -1
-    minute = -1
-    for token in root_token:
-        # 午前，午後
-        _meridiem_type = is_meridiem(token.text)
-        if _meridiem_type is not Meridiem.NOT_MERIDIEM:
-            meridiem_type = _meridiem_type
+    time_list: List[int] = _make_time_unit_list(root_token)
 
-        # 数値
-        _num_temp = time_expression_to_nummeric(token.text)
-        if -1 < _num_temp:
-            num_temp = _num_temp
-
-        # 時
-        if -1 < "時：:".find(token.text):
-            # 既に ":" が出現している場合，秒記述の可能性がある為，処理をスキップ
-            if not hour < 0:
-                break
-            hour = num_temp
-            num_temp = -1
-    # 分
-    if -1 < num_temp:
-        minute = num_temp
-    else:
-        # todo 時分共に情報が取得できなかった場合の処理は未実装
-        minute = 0
-
-    if meridiem_type == Meridiem.PM and hour < 13:
-        hour += 12
-    if 12 <= hour:
+    if meridiem_type == Meridiem.PM and time_list[TimeUnit.HOUR] < 13:
+        time_list[TimeUnit.HOUR] += 12
+    if 12 <= time_list[TimeUnit.HOUR]:
         meridiem_type = Meridiem.PM
 
     now = datetime.datetime.now()
     now_time = datetime.timedelta(hours=now.hour, minutes=now.minute, seconds=now.second)
-    target_time = datetime.timedelta(hours=hour, minutes=minute)
+    target_time = datetime.timedelta(hours=time_list[TimeUnit.HOUR], minutes=time_list[TimeUnit.MINUTES], seconds=time_list[TimeUnit.SECONDS])
     while target_time < now_time:
         if meridiem_type == Meridiem.NOT_MERIDIEM:
-            hour += 12
+            time_list[TimeUnit.HOUR] += 12
         else:
-            hour += 24
-        target_time = datetime.timedelta(hours=hour, minutes=minute)
+            time_list[TimeUnit.HOUR] += 24
+        target_time = datetime.timedelta(hours=time_list[TimeUnit.HOUR], minutes=time_list[TimeUnit.MINUTES], seconds=time_list[TimeUnit.SECONDS])
     
-    logger.debug(f"{meridiem_type=},{hour=},{minute=}")
-    delta = datetime.timedelta(hours=hour, minutes=minute)
+    delta = datetime.timedelta(hours=time_list[TimeUnit.HOUR], minutes=time_list[TimeUnit.MINUTES], seconds=time_list[TimeUnit.SECONDS])
     time = datetime.datetime(now.year, now.month, now.day) + delta
+    logger.debug(f"{meridiem_type=},{time_list[TimeUnit.HOUR]=}, {time_list[TimeUnit.MINUTES]=}, {time_list[TimeUnit.SECONDS]=}")
     logger.debug(f"現在時刻:{now}")
     logger.info(f"目標時刻:{time}")
     return time
@@ -87,41 +60,11 @@ def is_meridiem(in_text: str) -> Meridiem:
 
 # 時間表現をdatetimeへ変換
 def period_time_expression_normalization(root_token: spacy.tokens.token.Token) -> datetime.datetime:
-    # 対応文字列
-    # (時)?(分)?(程度)?
-    # 時　　　： [0-9]*[:|：|時間]
-    # 分　　　：([0-9]*[分]?)|[半]
-    num_temp = -1
-
-    # 判別できた時刻表現の保持用
-    hour = -1
-    minute = -1
-    for token in root_token:
-        # 数値
-        _num_temp = time_expression_to_nummeric(token.text)
-        if -1 < _num_temp:
-            num_temp = _num_temp
-
-        # 時
-        if -1 < "時：:".find(token.text[0]):
-            # 既に ":" が出現している場合，秒記述の可能性がある為，処理をスキップ
-            if not hour < 0:
-                break
-            hour = num_temp
-            num_temp = -1
-    # 分
-    if -1 < num_temp:
-        minute = num_temp
-    else:
-        # todo 時分共に情報が取得できなかった場合の処理は未実装
-        minute = 0
-
-    if hour < 0:
-        hour = 0
-
+    time_list: List[int] = _make_time_unit_list(root_token)
     now = datetime.datetime.now()
-    delta = datetime.timedelta(hours=hour, minutes=minute)
+    delta = datetime.timedelta(hours=time_list[TimeUnit.HOUR], minutes=time_list[TimeUnit.MINUTES], seconds=time_list[TimeUnit.SECONDS])
     time = now + delta
+    logger.debug(f"{time_list[TimeUnit.HOUR]=}, {time_list[TimeUnit.MINUTES]=}, {time_list[TimeUnit.SECONDS]=}")
     logger.debug(f"現在時刻:{now}")
     logger.info(f"目標時刻:{time}")
     return time
@@ -169,3 +112,53 @@ def time_expression_to_nummeric(in_text: str) -> int:
     if ret_value == 0:
         ret_value = -1
     return ret_value
+
+
+# トークン列から時間/時刻単位ごとの数値を List[int] = [hour, minutes, seconds] となるよう変換
+def _make_time_unit_list(root_token: List[spacy.tokens.token.Token]) -> List[int]:
+    num_stack: List[int] = []
+
+    # 判別できた時刻表現の保持用
+    time_list: List[int] = [-1, -1, -1] # [hour, minute, seconds]
+    for token in root_token:
+        logger.debug(f"parse: {token.text}")
+
+        # 数値
+        _num_temp = time_expression_to_nummeric(token.text)
+        if -1 < _num_temp:
+            num_stack.append(_num_temp)
+
+        # 時間単位
+        if -1 < ":：".find(token.text):
+            for i in range(len(time_list)):
+                if time_list[i] < 0:
+                    time_list[i] = num_stack.pop()
+                    logger.debug(f"set: {time_list[i]=}")
+                    break
+
+        # 時間単位
+        TIME_DEF = ["時", "分", "秒"]#"時間"対応できない
+        for i in range(len(TIME_DEF)):
+            if -1 < token.text.find(TIME_DEF[i]):
+                if not time_list[i] < 0:
+                    logger.warning(f"既に「{TIME_DEF[i]}」は設定済み:{time_list[i]}")
+                time_list[i] = num_stack.pop()
+                logger.debug(f"set {TIME_DEF[i]}: {time_list[i]=}")
+
+    # 最後の数字を未設定の時間単位うち最大となるよう設定
+    if num_stack:
+        index = -1
+        for i in range(len(time_list)-1, -1, -1):
+            if -1 < time_list[i]:
+                index = i + 1
+                break
+        for i in range(len(num_stack)):
+            time_list[index+i] = num_stack[i]
+        num_stack.clear()
+
+    # 未設定の時間単位を0に設定
+    for i in range(len(time_list)):
+        if time_list[i] < 0:
+            time_list[i] = 0
+
+    return time_list
