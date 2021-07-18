@@ -7,7 +7,6 @@ import discord
 import ginza
 import spacy
 
-import notify_task_list
 
 logger = getLogger(__name__)
 
@@ -87,6 +86,7 @@ class NotifyTask():
         logger.info(f"registered:{self._param._verb=}, {self._param._time=}")
 
         self._register_send_message = send_message
+        import notify_task_list
         notify_task_list.registered_notify_task_list.append_task(self)
 
 
@@ -113,6 +113,7 @@ class NotifyTask():
                 await asyncio.sleep(wav_play_time)
                 await voice_client.disconnect()
 
+        import notify_task_list
         notify_task_list.registered_notify_task_list.remove_task(self)
         logger.info(f"finish _notify_process")
 
