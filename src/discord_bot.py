@@ -77,7 +77,7 @@ if __name__ == "__main__":
     bot.add_cog(message_listener_cog)
 
     discord_token = None
-    with open("token.json", "r") as token_file:
+    with open("config.json", "r") as token_file:
         json_contents = json.load(token_file)
         discord_token = json_contents.get("token")
         message_listener_cog.set_response_text_channel_id_list(json_contents.get("response_text_channel_id_list", None))

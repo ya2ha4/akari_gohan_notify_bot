@@ -130,3 +130,4 @@ dmypy.json
 
 # akari_gohan_notify_bot output
 logfile.txt
+config.json
