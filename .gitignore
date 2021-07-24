@@ -129,5 +129,5 @@ dmypy.json
 .pyre/
 
 # akari_gohan_notify_bot output
-logfile.txt
+logfile.log
 config.json

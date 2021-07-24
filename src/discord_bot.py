@@ -66,9 +66,9 @@ class MessageListenerCog(commands.Cog):
 
 
 if __name__ == "__main__":
-    log_format = "[%(asctime)s %(levelname)s %(name)s][%(funcName)s] %(message)s"
-    logging.basicConfig(filename=f"logfile.txt", format=log_format)
-    logging.getLogger().setLevel(level=logging.DEBUG)
+    log_format = "[%(asctime)s %(levelname)s %(name)s(%(lineno)s)][%(funcName)s] %(message)s"
+    logging.basicConfig(filename=f"logfile.txt", encoding="utf-8", filemode="w", format=log_format)
+    #logging.getLogger().setLevel(level=logging.DEBUG)
 
     intents = discord.Intents.default()
     intents.members = True
