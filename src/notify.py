@@ -104,7 +104,7 @@ class NotifyTask():
             # ユーザがボイスチャンネルに接続中の場合，音声でのお知らせを実行
             if self._notify_member.voice:
                 voice_client = await self._notify_member.voice.channel.connect()
-                file_name = "voice/test.wav"
+                file_name = "voice/notify.wav"
                 voice_client.play(discord.FFmpegPCMAudio(file_name))
                 logger.debug(f"play: {file_name}")
                 wav_play_time = 0.0
