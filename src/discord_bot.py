@@ -1,9 +1,7 @@
-import asyncio
-import datetime
 import json
 import logging
-import typing
 from logging import getLogger
+from typing import List, Union
 
 import discord
 from discord.ext import commands
@@ -42,7 +40,7 @@ class MessageListenerCog(commands.Cog):
 
 
     @commands.Cog.listener(name="on_reaction_add")
-    async def response_reaction(self, reaction: discord.Reaction, user: typing.Union[discord.Member, discord.User]) -> None:
+    async def response_reaction(self, reaction: discord.Reaction, user: Union[discord.Member, discord.User]) -> None:
         if user == self._bot.user:
             return
 
@@ -61,7 +59,7 @@ class MessageListenerCog(commands.Cog):
                     await reaction.remove(user)
 
 
-    def set_response_text_channel_id_list(self, channel_list: typing.List[int]) -> None:
+    def set_response_text_channel_id_list(self, channel_list: List[int]) -> None:
         self._response_text_channel_id_list = channel_list
 
 
