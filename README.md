@@ -101,6 +101,7 @@ config_template.json をコピーし名前を config.json に変更して以下�
 
 ### 通知用音声ファイル (notify.wav) の用意
 通知の際に再生したい音声を用意し voice\notify.wav として配置して下さい。</br>
+動作確認用ファイル voice\notify_dummy.wav がありますのでwavを用意する前に起動する際は、名前を変更してご利用下さい。</br>
 
 
 ### ffmpegのインストール
@@ -232,4 +233,3 @@ https://github.com/WorksApplications/Sudachi/blob/develop/LICENSE-2.0.txt</br>
 https://github.com/WorksApplications/SudachiPy/blob/develop/LICENSE</br>
 https://github.com/WorksApplications/SudachiDict/blob/develop/LEGAL</br>
 https://github.com/WorksApplications/chiVe/blob/master/LICENSE</br>
-
