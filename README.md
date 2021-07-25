@@ -227,7 +227,7 @@ Copyright (C) 2016-2021 ExplosionAI GmbH, 2016 spaCy GmbH, 2015 Matthew Honnibal
 https://github.com/explosion/spaCy/blob/master/LICENSE</br>
 
 - Sudachi / SudachiPy-SudachiDict-chiVe</br>
-SudachiPy provides high accuracies for tokenization and pos tagging.</br>
+GiNZAはトークン化（形態素解析）処理にSudachiPyを使用することで、高い解析精度を得ています。</br>
 https://github.com/WorksApplications/Sudachi/blob/develop/LICENSE-2.0.txt</br>
 https://github.com/WorksApplications/SudachiPy/blob/develop/LICENSE</br>
 https://github.com/WorksApplications/SudachiDict/blob/develop/LEGAL</br>
