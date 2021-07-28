@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import wave
 from logging import getLogger
+from typing import List
 
 import discord
 import ginza
@@ -19,11 +20,11 @@ class NotifyParam():
 
 
     def make_registration_complete_message(self) -> str:
-        return f"{self.make_datetime_text()} に「{self.make_verb_text()}」をお知らせするよ"
+        return f"{self.make_datetime_text()} に「{self.make_target_text()}」をお知らせするよ"
 
 
     def make_notify_message(self) -> str:
-        return f"「{self.make_verb_text()}」に対するお知らせ時間になったよ"
+        return f"「{self.make_target_text()}」に対するお知らせ時間になったよ"
 
 
     def make_datetime_text(self) -> str:
@@ -32,10 +33,18 @@ class NotifyParam():
         return self._time.strftime("%m/%d(%a) %H:%M:%S")
 
 
-    def make_verb_text(self) -> str:
+    def make_target_text(self) -> str:
         if self._verb is None:
-            return None
+            return self.make_root_lefts_text()
         return f"{''.join([token.text for token in ginza.phrase(self._verb, join_func=lambda tokens: tokens)])}"
+
+
+    def make_root_lefts_text(self) -> str:
+        root_left_list: List = list(self._root.lefts)
+        if root_left_list:
+            return f"{''.join([token.text for token in ginza.phrase(root_left_list[0], join_func=lambda tokens: tokens)])}"
+        return None
+
 
 
 class NotifyTask():
